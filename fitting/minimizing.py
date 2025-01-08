@@ -1,51 +1,70 @@
 import numpy as np
 from scipy.optimize import minimize
 
-def fit_parameters(model_function,
-                   rewards: np.ndarray,
-                   stimuli_present: np.ndarray,
-                   cost_metric: str = 'log-likelihood',
-                   observed_data: np.ndarray = None,
-                   minimizer_params_dict: dict = None):
+from fitting.costs_functions import minimizer_cost_function
+
+
+def minimizing_function(model_function, initial_parameters, rewards, stimuli_present, extra_function_params=None,
+                        observed_data=None,
+                        cost_metric='log-likelihood', minimize_options=None):
     """
-    Minimizes the chosen cost_metric by varying alpha, beta.
+    Function to minimize the cost_function using scipy.optimize.minimize.
 
     Parameters
     ----------
-    model_function : callable
-        E.g., rescorla_wagner. Accepts (alpha, beta, rewards, stimuli_present).
+    model_function : function
+        The model function generating associative strengths.
+    initial_parameters : list or tuple
+        Initial guesses for the model parameters to be optimized.
     rewards : np.ndarray
-        Rewards array, shape=(n_trials,).
+        Array of rewards (ground truth).
     stimuli_present : np.ndarray
-        Binary array, shape=(n_trials, n_stimuli).
-    cost_metric : {'log-likelihood', 'MSE'}
-        Which cost metric to minimize.
-    observed_data : np.ndarray or None
-        If None, synthetic data is generated internally (purely for demonstration).
-        Otherwise, must have shape=(n_trials,).
-    minimizer_params_dict : dict, optional
-        Additional parameters to pass to scipy.optimize.minimize (e.g. method, options).
+        Binary array indicating stimulus presence on each trial.
+    observed_data : np.ndarray, optional
+        Observed data (computed from rewards if None).
+    cost_metric : str
+        The cost metric to use ('log-likelihood', 'mse', 'rmse', 'meanabs', 'medianabs', 'maxabs').
+    minimize_options : dict, optional
+        Dictionary containing optimization settings (e.g., method, tolerance, display options, etc.).
 
     Returns
     -------
     result : OptimizeResult
-        The object returned by scipy.optimize.minimize, containing best-fit params, etc.
+        The result of the optimization.
     """
-    if minimizer_params_dict is None:
-        minimizer_params_dict = {}
+    if minimize_options is None:
+        minimize_options = {}
 
-    # Initial guess for alpha, beta
-    initial_guess = [0.1, 1.0]
-
-    # Bounds: alpha in [0,1], beta >= 0
-    bounds = [(0.0, 1.0), (0.0, None)]
-
-    result = minimize(
-        fun=,
-        x0=initial_guess,
-        args=(model_function, rewards, stimuli_present, cost_metric, observed_data),
-        bounds=bounds,
-        **minimizer_params_dict
-    )
+    result = minimize(minimizer_cost_function,
+                      args=(
+                      model_function, rewards, stimuli_present, extra_function_params, observed_data, cost_metric),
+                      x0=np.array(initial_parameters), **minimize_options)
 
     return result
+
+
+if __name__ == "__main__":
+    from models.rescorla_wagner_simple import rescorla_wagner
+
+    initial_parameters = [0.9, 0.5]
+    rewards = np.array([1, 1, 0, 1, 0, 1, 1, 0, 0, 1])
+
+    # Minimize options for scipy
+    minimize_options = {
+        'method': 'L-BFGS-B',  # Optimization method
+        'tol': 1e-6,  # Convergence tolerance
+        'options': {'disp': False}  # Display optimization progress
+    }
+
+    # Perform minimization
+    result = minimizing_function(
+        model_function=rescorla_wagner,
+        initial_parameters=initial_parameters,
+        rewards=rewards,
+        stimuli_present=None,
+        cost_metric='log-likelihood',
+        minimize_options=minimize_options
+    )
+
+    print(f"Optimized parameters: {result.x}")
+    print(f"Final cost: {result.fun}")

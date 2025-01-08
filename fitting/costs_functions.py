@@ -1,21 +1,40 @@
 import numpy as np
+from statsmodels.tools.eval_measures import mse, rmse, meanabs, medianabs, maxabs
+
+from math_functions.conversion_functions import sigmoid
+from math_functions.costs_metrics import log_likelihood
 
 
-def cost_function(model_function, parameters, rewards, stimuli_present, observed_data=None, cost_metric='log-likelihood'):
+def minimizer_cost_function(parameters, model_function, rewards, stimuli_present, extra_function_params=None,
+                            observed_data=None,
+                            cost_metric='log-likelihood'):
     """
     General cost function for comparing predicted probabilities to observed data.
     """
+    n_trials = len(rewards)
     if observed_data is None:
         observed_data = np.array(rewards)
-    V_history = model_function(parameters, rewards, stimuli_present)
+    if stimuli_present is None:
+        stimuli_present = np.array([1] * n_trials)
+    if extra_function_params is not None:
+        V_history = model_function(*parameters, rewards, stimuli_present, *extra_function_params)
+    else:
+        V_history = model_function(*parameters, rewards, stimuli_present)
     V_present = np.sum(V_history[0:] * stimuli_present, axis=1)
-    # Convert V_history to choice probabilities using logistic (sigmoid) function
-    p_choice = sigmoid
-
-    # Calculate cost based on the specified cost metric
+    p_choice = sigmoid(V_present)[:-1]
     if cost_metric == 'log-likelihood':
         return log_likelihood(observed_data, p_choice)
     elif cost_metric == 'mse':
         return mse(observed_data, p_choice)
+    elif cost_metric == 'mse':
+        return mse(observed_data, p_choice)
+    elif cost_metric == 'rmse':
+        return rmse(observed_data, p_choice)
+    elif cost_metric == 'meanabs':
+        return meanabs(observed_data, p_choice)
+    elif cost_metric == 'medianabs':
+        return medianabs(observed_data, p_choice)
+    elif cost_metric == 'maxabs':
+        return maxabs(observed_data, p_choice)
     else:
         raise ValueError(f"Unsupported cost metric: {cost_metric}")

@@ -19,8 +19,7 @@ def rescorla_wagner(
         Salience/associability parameter for the US (β).
     rewards : np.ndarray of shape (n_trials,)
         The actual reward (US) delivered on each trial.
-    stimuli_present : np.ndarray of shape (n_trials, n_stimuli), optional
-        Binary array (0 or 1) indicating which stimuli are present on each trial.
+    stimuli_present : np.ndarray of binary array (0 or 1) indicating which stimuli are present on each trial.
         If None, assume a single stimulus present on every trial.
     V_init : float, optional
         Initial associative strength for each stimulus.
@@ -32,21 +31,13 @@ def rescorla_wagner(
         V_history[0, :] is the initial value before any trial.
     """
     # If no stimuli_present provided, assume a single stimulus for every trial
-    if stimuli_present is None:
-        n_trials = len(rewards)
-        n_stimuli = 1
-        stimuli_present = np.ones((n_trials, n_stimuli), dtype=int)
-    else:
-        # Otherwise, deduce the shape directly
-        n_trials, n_stimuli = stimuli_present.shape
-
+    n_trials = len(rewards)
+    n_stimuli = len(stimuli_present)
     # Initialize associative strengths for each stimulus
     V = np.full(n_stimuli, V_init, dtype=float)
-
     # Store the value of V before and after each trial
     V_history = np.zeros((n_trials + 1, n_stimuli), dtype=float)
     V_history[0] = V
-
     for t in range(n_trials):
         # 1) Calculate total predicted value on this trial (sum over present stimuli)
         V_sum = np.sum(V * stimuli_present[t])
