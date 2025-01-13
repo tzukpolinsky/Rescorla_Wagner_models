@@ -37,7 +37,7 @@ def minimizing_function(model_function, initial_parameters, rewards, stimuli_pre
 
     result = minimize(minimizer_cost_function,
                       args=(
-                      model_function, rewards, stimuli_present, extra_function_params, observed_data, cost_metric),
+                          model_function, rewards, stimuli_present, extra_function_params, observed_data, cost_metric),
                       x0=np.array(initial_parameters), **minimize_options)
 
     return result
@@ -46,9 +46,8 @@ def minimizing_function(model_function, initial_parameters, rewards, stimuli_pre
 if __name__ == "__main__":
     from models.rescorla_wagner_simple import rescorla_wagner
 
-    initial_parameters = [0.9, 0.5]
+    initial_parameters = [0.3, 0.1]
     rewards = np.array([1, 1, 0, 1, 0, 1, 1, 0, 0, 1])
-
     # Minimize options for scipy
     minimize_options = {
         'method': 'L-BFGS-B',  # Optimization method

@@ -68,18 +68,7 @@ def example():
 
     # Stimulus presence matrix: shape=(10,2)
     # Stimulus A present on every trial, stimulus B only on odd-numbered trials
-    stimuli_present = np.array([
-        [1, 1],  # Trial 1
-        [1, 0],  # Trial 2
-        [1, 1],  # Trial 3
-        [1, 0],  # Trial 4
-        [1, 1],  # Trial 5
-        [1, 0],  # Trial 6
-        [1, 1],  # Trial 7
-        [1, 0],  # Trial 8
-        [1, 1],  # Trial 9
-        [1, 0]  # Trial 10
-    ], dtype=int)
+    stimuli_present = np.array([1] * len(rewards))
 
     # Run the Rescorla-Wagner model
     V_history = rescorla_wagner(
@@ -97,3 +86,4 @@ def example():
 
 if __name__ == "__main__":
     example()
+
