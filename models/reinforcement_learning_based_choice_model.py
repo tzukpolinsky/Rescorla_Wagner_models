@@ -28,8 +28,4 @@ def reinforcement_learning_simple_model(params, choices, rewards):
 
         # Update Q-values with prediction error
         Q[choices[rep_num]] += this_alpha * (rewards[rep_num] - Q[choices[rep_num]])
-
-    # Calculate negative log-likelihood
-    neg_log_likelihood = -np.sum(np.log(np.maximum(Pchoice, 0.0001)))
-
-    return neg_log_likelihood
+    return Pchoice

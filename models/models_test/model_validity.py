@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from fitting.minimizing import minimizing_function
+from fitting.minimizing import minimizing_rescorla_wagner_model
 from models.rescorla_wagner_simple import rescorla_wagner
 
 
@@ -21,7 +21,7 @@ def fit_synthetic_data(rewards, stimuli_present, observed_choices, initial_guess
         'options': {'disp': False},
         'bounds': [(0.01, 1.0), (0.1, 10.0)]
     }
-    result = minimizing_function(
+    result = minimizing_rescorla_wagner_model(
         model_function=rescorla_wagner,
         initial_parameters=initial_guess,
         rewards=rewards,

@@ -1,12 +1,52 @@
 import numpy as np
 from scipy.optimize import minimize
 
-from fitting.costs_functions import minimizer_cost_function
+from fitting.costs_functions import minimizer_cost_function_rescorla_wagner, \
+    minimizer_cost_function_reinforcement_learning
 
 
-def minimizing_function(model_function, initial_parameters, rewards, stimuli_present, extra_function_params=None,
-                        observed_data=None,
-                        cost_metric='log-likelihood', minimize_options=None):
+def minimizing_reinforcement_learning_model(model_function, initial_parameters, rewards, choices,
+                                            observed_data=None,
+                                            cost_metric='log-likelihood', minimize_options=None):
+    """
+    Function to minimize the cost_function using scipy.optimize.minimize.
+
+    Parameters
+    ----------
+    model_function : function
+        The model function generating associative strengths.
+    initial_parameters : list or tuple
+        Initial guesses for the model parameters to be optimized.
+    rewards : np.ndarray
+        Array of rewards (ground truth).
+    stimuli_present : np.ndarray
+        Binary array indicating stimulus presence on each trial.
+    observed_data : np.ndarray, optional
+        Observed data (computed from rewards if None).
+    cost_metric : str
+        The cost metric to use ('log-likelihood', 'mse', 'rmse', 'meanabs', 'medianabs', 'maxabs').
+    minimize_options : dict, optional
+        Dictionary containing optimization settings (e.g., method, tolerance, display options, etc.).
+
+    Returns
+    -------
+    result : OptimizeResult
+        The result of the optimization.
+    """
+    if minimize_options is None:
+        minimize_options = {}
+    result = minimize(minimizer_cost_function_reinforcement_learning,
+                      args=(
+                          model_function, rewards, choices, observed_data, cost_metric),
+                      x0=np.array(initial_parameters), **minimize_options)
+
+    return result
+
+
+def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards, stimuli_present,
+                                     extra_function_params=None,
+                                     observed_data=None,
+                                     cost_metric='log-likelihood', minimize_options=None):
     """
     Function to minimize the cost_function using scipy.optimize.minimize.
 
@@ -35,7 +75,7 @@ def minimizing_function(model_function, initial_parameters, rewards, stimuli_pre
     if minimize_options is None:
         minimize_options = {}
 
-    result = minimize(minimizer_cost_function,
+    result = minimize(minimizer_cost_function_rescorla_wagner,
                       args=(
                           model_function, rewards, stimuli_present, extra_function_params, observed_data, cost_metric),
                       x0=np.array(initial_parameters), **minimize_options)
@@ -56,7 +96,7 @@ if __name__ == "__main__":
     }
 
     # Perform minimization
-    result = minimizing_function(
+    result = minimizing_rescorla_wagner_model(
         model_function=rescorla_wagner,
         initial_parameters=initial_parameters,
         rewards=rewards,

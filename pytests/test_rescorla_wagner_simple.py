@@ -3,7 +3,7 @@ import numpy as np
 from models.rescorla_wagner_simple import rescorla_wagner
 import numpy as np
 import matplotlib.pyplot as plt
-from fitting.minimizing import minimizing_function
+from fitting.minimizing import minimizing_rescorla_wagner_model
 
 
 def test_single_stimulus():
