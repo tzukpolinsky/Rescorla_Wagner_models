@@ -43,7 +43,7 @@ def minimizing_reinforcement_learning_model(model_function, initial_parameters, 
     return result
 
 
-def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards, stimuli_present,
+def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards, stimuli_present=None,
                                      extra_function_params=None,
                                      observed_data=None,
                                      cost_metric='log-likelihood', minimize_options=None):
@@ -56,10 +56,10 @@ def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards
         The model function generating associative strengths.
     initial_parameters : list or tuple
         Initial guesses for the model parameters to be optimized.
-    rewards : np.ndarray
+    rewards : np.ndarray or None
         Array of rewards (ground truth).
     stimuli_present : np.ndarray
-        Binary array indicating stimulus presence on each trial.
+        Binary array indicating stimulus presence on each trial, if None assume that all the rewards had stimuli.
     observed_data : np.ndarray, optional
         Observed data (computed from rewards if None).
     cost_metric : str
@@ -84,7 +84,7 @@ def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards
 
 
 if __name__ == "__main__":
-    from models.rescorla_wagner_simple import rescorla_wagner
+    from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
 
     initial_parameters = [0.3, 0.1]
     rewards = np.array([1, 1, 0, 1, 0, 1, 1, 0, 0, 1])

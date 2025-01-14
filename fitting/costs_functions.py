@@ -5,7 +5,7 @@ from math_functions.conversion_functions import sigmoid
 from math_functions.costs_metrics import log_likelihood
 
 
-def minimizer_cost_function_rescorla_wagner(parameters, model_function, rewards, stimuli_present,
+def minimizer_cost_function_rescorla_wagner(parameters, model_function, rewards, stimuli_present=None,
                                             extra_function_params=None,
                                             observed_data=None,
                                             cost_metric='log-likelihood'):

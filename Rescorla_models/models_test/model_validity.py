@@ -2,8 +2,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model
-from models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
-from models.rescorla_wagner_simple import rescorla_wagner
+from Rescorla_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
+from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
 
 
 def generate_synthetic_data_reinforcement_learning(alpha, beta, n_trials=100):
@@ -87,7 +87,8 @@ def parameter_recovery_test_reinforcement_learning(n_tests=20, n_trials=100):
 
     true_params = np.array(true_params)
     recovered_params = np.array(recovered_params)
-    plot_parameter_recovery(true_params, recovered_params, "Reinforcement Learning Model Parameter Recovery")
+    plot_parameter_recovery(true_params, recovered_params,
+                            f"Reinforcement Learning Model Parameter Recovery\nN trails: {n_trials}, N tests: {n_tests}")
 
     return true_params, recovered_params
 
@@ -144,7 +145,8 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
 
     true_params = np.array(true_params)
     recovered_params = np.array(recovered_params)
-    plot_parameter_recovery(true_params, recovered_params, "Rescorla-Wagner Model Parameter Recovery")
+    plot_parameter_recovery(true_params, recovered_params,
+                            f"Rescorla-Wagner Model Parameter Recovery\nN trails: {n_trials}, N tests: {n_tests}")
 
     return true_params, recovered_params
 
