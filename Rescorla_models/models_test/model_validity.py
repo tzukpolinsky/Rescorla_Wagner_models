@@ -118,6 +118,9 @@ def plot_parameter_recovery(true_params, recovered_params, title):
     ax[1].legend()
     ax[1].set_xlim([1, 10])
     ax[1].set_ylim([1, 10])
+    for i in range(2):
+        for spine in ['top', 'right']:
+            ax[i].spines[spine].set_visible(False)
     plt.suptitle(title, fontsize=16, fontweight='bold')
     plt.tight_layout()
     plt.show()
