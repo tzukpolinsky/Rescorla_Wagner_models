@@ -1,11 +1,25 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from fitting.minimizing import minimizing_rescorla_wagner_model
+from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model
+from models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
 from models.rescorla_wagner_simple import rescorla_wagner
 
 
-def generate_synthetic_data(alpha, beta, n_trials=100):
+def generate_synthetic_data_reinforcement_learning(alpha, beta, n_trials=100):
+    """
+    Generate synthetic data for the reinforcement learning simple model.
+    """
+    choices = np.random.choice([0, 1], size=n_trials)  # Random initial choices
+    rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])  # Rewards based on 50% chance
+    Pchoice = reinforcement_learning_simple_model([alpha, beta], choices, rewards)  # Model predictions
+
+    # Generate binary observed choices based on probabilities
+    observed_choices = np.random.binomial(1, Pchoice)
+    return rewards, choices, observed_choices
+
+
+def generate_synthetic_data_rescorla_wagner(alpha, beta, n_trials=100):
     rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])
     stimuli_present = np.array([1] * len(rewards))  # Single stimulus present in each trial
     V_history = rescorla_wagner(alpha, beta, rewards, stimuli_present).reshape(-1)[:n_trials]
@@ -33,31 +47,52 @@ def fit_synthetic_data(rewards, stimuli_present, observed_choices, initial_guess
     return result.x  # Return recovered parameters
 
 
-# Perform parameter recovery test
-def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
+def fit_synthetic_data_reinforcement_learning(rewards, choices, observed_choices, initial_guess=[0.5, 0.5]):
+    minimize_options = {
+        'method': 'L-BFGS-B',
+        'options': {'disp': False},
+        'bounds': [(0.01, 1.0), (0.1, 10.0)]  # Bounds for alpha and beta
+    }
+    result = minimizing_reinforcement_learning_model(
+        model_function=reinforcement_learning_simple_model,
+        initial_parameters=initial_guess,
+        rewards=rewards,
+        choices=choices,
+        observed_data=observed_choices,
+        cost_metric='log-likelihood',
+        minimize_options=minimize_options
+    )
+    return result.x  # Return recovered parameters
+
+
+def parameter_recovery_test_reinforcement_learning(n_tests=20, n_trials=100):
     true_params = []
     recovered_params = []
 
     for _ in range(n_tests):
-        alpha_true = np.random.uniform(0.1, 1)  # True alpha (learning rate)
-        beta_true = np.random.uniform(1.0, 5.0)  # True beta (inverse temperature)
+        alpha_true = np.random.uniform(0.1, 1.0)  # True alpha (learning rate)
+        beta_true = np.random.uniform(0.1, 5.0)  # True beta (inverse temperature)
         true_params.append((alpha_true, beta_true))
 
         # Generate synthetic data
-        rewards, stimuli_present, choices = generate_synthetic_data(alpha_true, beta_true, n_trials)
+        rewards, choices, observed_choices = generate_synthetic_data_reinforcement_learning(alpha_true, beta_true,
+                                                                                            n_trials)
 
         # Fit the synthetic data to recover parameters
-        recovered_alpha, recovered_beta = fit_synthetic_data(rewards, stimuli_present, choices,
-                                                             initial_guess=[
-                                                                 np.random.uniform(max(0.1, alpha_true - 0.2),
-                                                                                   alpha_true + 0.2),
-                                                                 np.random.uniform(beta_true - 1, beta_true + 1)])
+        initial_guess = [np.random.uniform(max(0.1, alpha_true - 0.2), alpha_true + 0.2),
+                         np.random.uniform(max(0.1, beta_true - 1.0), beta_true + 1.0)]
+        recovered_alpha, recovered_beta = fit_synthetic_data_reinforcement_learning(rewards, choices, observed_choices,
+                                                                                    initial_guess)
         recovered_params.append((recovered_alpha, recovered_beta))
 
     true_params = np.array(true_params)
     recovered_params = np.array(recovered_params)
+    plot_parameter_recovery(true_params, recovered_params, "Reinforcement Learning Model Parameter Recovery")
 
-    # Scatter plot to compare true vs recovered parameters
+    return true_params, recovered_params
+
+
+def plot_parameter_recovery(true_params, recovered_params, title):
     fig, ax = plt.subplots(1, 2, figsize=(12, 6))
 
     # Subplot A: Learning rate (alpha) recovery (linear-linear scale)
@@ -82,10 +117,38 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
     ax[1].legend()
     ax[1].set_xlim([1, 10])
     ax[1].set_ylim([1, 10])
-
+    plt.suptitle(title, fontsize=16, fontweight='bold')
     plt.tight_layout()
     plt.show()
 
 
+def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
+    true_params = []
+    recovered_params = []
+
+    for _ in range(n_tests):
+        alpha_true = np.random.uniform(0.1, 1)  # True alpha (learning rate)
+        beta_true = np.random.uniform(1.0, 5.0)  # True beta (inverse temperature)
+        true_params.append((alpha_true, beta_true))
+
+        # Generate synthetic data
+        rewards, stimuli_present, choices = generate_synthetic_data_rescorla_wagner(alpha_true, beta_true, n_trials)
+
+        # Fit the synthetic data to recover parameters
+        recovered_alpha, recovered_beta = fit_synthetic_data(rewards, stimuli_present, choices,
+                                                             initial_guess=[
+                                                                 np.random.uniform(max(0.1, alpha_true - 0.2),
+                                                                                   alpha_true + 0.2),
+                                                                 np.random.uniform(beta_true - 1, beta_true + 1)])
+        recovered_params.append((recovered_alpha, recovered_beta))
+
+    true_params = np.array(true_params)
+    recovered_params = np.array(recovered_params)
+    plot_parameter_recovery(true_params, recovered_params, "Rescorla-Wagner Model Parameter Recovery")
+
+    return true_params, recovered_params
+
+
 if __name__ == "__main__":
-    parameter_recovery_test_rescorla_wagner(n_tests=100,n_trials=60)
+    parameter_recovery_test_rescorla_wagner(n_tests=100, n_trials=60)
+    parameter_recovery_test_reinforcement_learning(n_tests=100, n_trials=60)

@@ -28,4 +28,4 @@ def reinforcement_learning_simple_model(params, choices, rewards):
 
         # Update Q-values with prediction error
         Q[choices[rep_num]] += this_alpha * (rewards[rep_num] - Q[choices[rep_num]])
-    return Pchoice
+    return np.array(Pchoice)
