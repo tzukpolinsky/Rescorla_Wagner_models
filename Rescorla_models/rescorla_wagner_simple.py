@@ -44,13 +44,9 @@ def rescorla_wagner(
 
         # 2) Prediction error = λ (reward) - ΣV_i (for stimuli that are present)
         lambda_t = rewards[t]
+
         prediction_error = lambda_t - V_sum
-
-        # 3) Update the associative strengths in one step using NumPy indexing
-        #    Only update indices where stimuli_present[t] == 1
-        V[stimuli_present[t] == 1] += alpha * beta * prediction_error
-
-        # 4) Store updated V in V_history
+        V[t] += alpha * beta * prediction_error
         V_history[t + 1] = V
 
     return V_history
