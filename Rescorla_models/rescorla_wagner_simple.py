@@ -46,7 +46,7 @@ def rescorla_wagner(
         lambda_t = rewards[t]
 
         prediction_error = lambda_t - V_sum
-        V[t] += alpha * beta * prediction_error
+        V[stimuli_present[t] == 1] += alpha * beta * prediction_error
         V_history[t + 1] = V
 
     return V_history
@@ -82,4 +82,3 @@ def example():
 
 if __name__ == "__main__":
     example()
-
