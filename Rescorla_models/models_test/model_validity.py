@@ -1,9 +1,44 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model
+from Rescorla_models.random_response import random_response
+from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model, \
+    minimizing_reinforcement_random_response
 from Rescorla_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
 from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
+
+
+def generate_synthetic_data_random_responding(b, n_trials=100):
+    """
+    Generate synthetic data for the Random Responding model.
+
+    Parameters
+    ----------
+    b : float
+        Bias parameter. Probability of responding "1".
+    n_trials : int, optional
+        Number of trials to simulate (default is 100).
+
+    Returns
+    -------
+    rewards : np.ndarray
+        Binary array of rewards (0 or 1) for each trial.
+    observed_data : np.ndarray
+        Simulated binary responses (0 or 1) based on the bias parameter and rewards.
+    """
+    if not (0 <= b <= 1):
+        raise ValueError("Bias parameter b must be between 0 and 1.")
+
+    # Generate rewards randomly with a 50% chance for 0 or 1
+    rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])
+
+    # Calculate probabilities (pchoice) based on the bias parameter b
+    pchoice = random_response(b, rewards)
+
+    # Generate observed data using binomial sampling from pchoice
+    observed_data = np.random.binomial(1, pchoice)
+
+    return rewards, observed_data
 
 
 def generate_synthetic_data_reinforcement_learning(alpha, beta, n_trials=100):
@@ -28,8 +63,25 @@ def generate_synthetic_data_rescorla_wagner(alpha, beta, n_trials=100):
     return rewards, stimuli_present, choices
 
 
+def fit_synthetic_data_random_response(rewards, observed_choices, initial_guess=[0.7]):
+    minimize_options = {
+        'method': 'L-BFGS-B',
+        'options': {'disp': False},
+        'bounds': [(0.01, 1.0)]  # Bounds for alpha and beta
+    }
+    result = minimizing_reinforcement_random_response(
+        model_function=random_response,
+        initial_parameters=initial_guess,
+        rewards=rewards,
+        observed_data=observed_choices,
+        cost_metric='log-likelihood',
+        minimize_options=minimize_options
+    )
+    return result.x  # Return recovered parameters
+
+
 # Fit the synthetic data to recover parameters
-def fit_synthetic_data(rewards, stimuli_present, observed_choices, initial_guess=[0.5, 0.5]):
+def fit_synthetic_data_rescorla_wagner(rewards, stimuli_present, observed_choices, initial_guess=[0.5, 0.5]):
     minimize_options = {
         'method': 'L-BFGS-B',
         'options': {'disp': False},
@@ -63,6 +115,40 @@ def fit_synthetic_data_reinforcement_learning(rewards, choices, observed_choices
         minimize_options=minimize_options
     )
     return result.x  # Return recovered parameters
+
+
+def parameter_recovery_test_random_response(n_tests=20, n_trials=100):
+    true_params = []
+    recovered_params = []
+
+    for _ in range(n_tests):
+        b_true = np.random.uniform(0.5, 1.0)  # True alpha (learning rate)
+        true_params.append(b_true)
+
+        # Generate synthetic data
+        rewards, observed_choices = generate_synthetic_data_random_responding(b_true, n_trials)
+
+        # Fit the synthetic data to recover parameters
+        initial_guess = [np.random.uniform(max(0.1, b_true - 0.2), b_true + 0.2)]
+        recovered_b = fit_synthetic_data_random_response(rewards, observed_choices, initial_guess)
+        recovered_params.append(recovered_b)
+
+    true_params = np.array(true_params)
+    recovered_params = np.array(recovered_params)
+    plt.figure(figsize=(8, 8))
+    plt.scatter(true_params, recovered_params, alpha=0.7, label="Recovered Parameters")
+    plt.plot([0, 1], [0, 1], color="red", linestyle="--", label="Ideal Recovery (y=x)")
+
+    plt.title("Parameter Recovery Test For Random Response")
+    plt.xlabel("True Parameters")
+    plt.ylabel("Recovered Parameters")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.6)
+
+    plt.show()
+    return true_params, recovered_params
 
 
 def parameter_recovery_test_reinforcement_learning(n_tests=20, n_trials=100):
@@ -139,11 +225,13 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
         rewards, stimuli_present, choices = generate_synthetic_data_rescorla_wagner(alpha_true, beta_true, n_trials)
 
         # Fit the synthetic data to recover parameters
-        recovered_alpha, recovered_beta = fit_synthetic_data(rewards, stimuli_present, choices,
-                                                             initial_guess=[
-                                                                 np.random.uniform(max(0.1, alpha_true - 0.2),
-                                                                                   alpha_true + 0.2),
-                                                                 np.random.uniform(beta_true - 1, beta_true + 1)])
+        recovered_alpha, recovered_beta = fit_synthetic_data_rescorla_wagner(rewards, stimuli_present, choices,
+                                                                             initial_guess=[
+                                                                                 np.random.uniform(
+                                                                                     max(0.1, alpha_true - 0.2),
+                                                                                     alpha_true + 0.2),
+                                                                                 np.random.uniform(beta_true - 1,
+                                                                                                   beta_true + 1)])
         recovered_params.append((recovered_alpha, recovered_beta))
 
     true_params = np.array(true_params)
@@ -155,5 +243,6 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
 
 
 if __name__ == "__main__":
+    parameter_recovery_test_random_response(n_tests=100,n_trials=60)
     parameter_recovery_test_rescorla_wagner(n_tests=100, n_trials=60)
     parameter_recovery_test_reinforcement_learning(n_tests=100, n_trials=60)
