@@ -47,14 +47,12 @@ def minimizer_cost_function_rescorla_wagner(parameters, model_function, rewards,
     n_trials = len(rewards)
     if observed_data is None:
         observed_data = np.array(rewards)
-    if stimuli_present is None:
-        stimuli_present = np.array([1] * n_trials)
     if extra_function_params is not None:
-        V_history = model_function(*parameters, rewards, stimuli_present, *extra_function_params)
+        V_history,stimuli_present_output = model_function(*parameters, rewards, stimuli_present, *extra_function_params)
     else:
-        V_history = model_function(*parameters, rewards, stimuli_present)
-    V_present = np.sum(V_history[0:] * stimuli_present, axis=1)
-    p_choice = sigmoid(V_present)[:-1]
+        V_history,stimuli_present_output = model_function(*parameters, rewards, stimuli_present)
+    V_present = np.sum(V_history[1:] * stimuli_present_output, axis=1)
+    p_choice = sigmoid(V_present)
     return metric_calculation(p_choice, observed_data, cost_metric=cost_metric)
 
 
