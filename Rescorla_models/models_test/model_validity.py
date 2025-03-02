@@ -174,7 +174,7 @@ def parameter_recovery_test_reinforcement_learning(n_tests=20, n_trials=100):
     true_params = np.array(true_params)
     recovered_params = np.array(recovered_params)
     plot_parameter_recovery(true_params, recovered_params,
-                            f"Reinforcement Learning Model Parameter Recovery\nN trails: {n_trials}, N tests: {n_tests}")
+                            f"Reinforcement Learning Model Parameter Recovery\nN trials: {n_trials}, N tests: {n_tests}")
 
     return true_params, recovered_params
 
@@ -237,7 +237,7 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
     true_params = np.array(true_params)
     recovered_params = np.array(recovered_params)
     plot_parameter_recovery(true_params, recovered_params,
-                            f"Rescorla-Wagner Model Parameter Recovery\nN trails: {n_trials}, N tests: {n_tests}")
+                            f"Rescorla-Wagner Model Parameter Recovery\nN trials: {n_trials}, N tests: {n_tests}")
 
     return true_params, recovered_params
 
