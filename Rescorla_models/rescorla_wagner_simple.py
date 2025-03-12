@@ -62,7 +62,7 @@ def rescorla_wagner(
         # 4) Store updated V in V_history
         V_history[t + 1] = V
 
-    return V_history,stimuli_present
+    return V_history, stimuli_present
 
 
 def example():

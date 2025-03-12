@@ -5,7 +5,7 @@ from fitting.costs_functions import minimizer_cost_function_rescorla_wagner, \
     minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response
 
 
-def minimizing_reinforcement_random_response(model_function, initial_parameters, rewards,
+def minimizing_random_response(model_function, initial_parameters, rewards,
                                              observed_data=None,
                                              cost_metric='log-likelihood', minimize_options=None):
     """

@@ -3,7 +3,7 @@ from matplotlib import pyplot as plt
 
 from Rescorla_models.random_response import random_response
 from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model, \
-    minimizing_reinforcement_random_response
+    minimizing_random_response
 from Rescorla_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
 from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
 
@@ -56,10 +56,13 @@ def generate_synthetic_data_reinforcement_learning(alpha, beta, n_trials=100):
 
 def generate_synthetic_data_rescorla_wagner(alpha, beta, n_trials=100):
     rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])
-    stimuli_present = np.array([1] * len(rewards))  # Single stimulus present in each trial
-    V_history = rescorla_wagner(alpha, beta, rewards, stimuli_present).reshape(-1)[:n_trials]
+    n_trials = len(rewards)
+    n_stimuli = 1
+    stimuli_present = np.ones((n_trials, n_stimuli), dtype=int) # Single stimulus present in each trial
+    V_history,stimuli_present_output = rescorla_wagner(alpha, beta, rewards, stimuli_present)
+    V_present = np.sum(V_history[1:] * stimuli_present_output, axis=1)
     # Generate binary choices based on the associative strength and a softmax choice
-    choices = np.random.binomial(1, 1 / (1 + np.exp(-beta * (V_history)))).flatten()
+    choices = np.random.binomial(1, 1 / (1 + np.exp(-beta * (V_present)))).flatten()
     return rewards, stimuli_present, choices
 
 
@@ -69,7 +72,7 @@ def fit_synthetic_data_random_response(rewards, observed_choices, initial_guess=
         'options': {'disp': False},
         'bounds': [(0.01, 1.0)]  # Bounds for alpha and beta
     }
-    result = minimizing_reinforcement_random_response(
+    result = minimizing_random_response(
         model_function=random_response,
         initial_parameters=initial_guess,
         rewards=rewards,

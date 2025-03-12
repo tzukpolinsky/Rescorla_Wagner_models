@@ -31,9 +31,10 @@ def minimizer_cost_function_random_response(parameters, model_function, rewards,
     """
     General cost function for comparing predicted probabilities to observed data.
     """
-    if observed_data is None:
-        observed_data = np.array(rewards)
+
     p_choice = model_function(*parameters, rewards)
+    if observed_data is None:
+        observed_data = np.random.binomial(1, p_choice)
     return metric_calculation(p_choice, observed_data, cost_metric)
 
 
