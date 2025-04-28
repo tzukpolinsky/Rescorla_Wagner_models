@@ -1,11 +1,161 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
-from Rescorla_models.random_response import random_response
+from computational_models.random_response import random_response
 from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model, \
-    minimizing_random_response
-from Rescorla_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
-from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
+    minimizing_random_response, minimizing_win_stay_lose_switch
+from computational_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
+from computational_models.rescorla_wagner_simple import rescorla_wagner
+from computational_models.win_stay_lose_switch import win_stay_lose_switch
+
+
+def generate_synthetic_data_win_stay_lose_switch(epsilon, n_trials=100):
+    """
+    Generate synthetic data for the Win-Stay-Lose-Switch model.
+
+    Parameters
+    ----------
+    epsilon : float
+        The randomness parameter (epsilon) for the WSLS model.
+    n_trials : int, optional
+        Number of trials to simulate (default is 100).
+
+    Returns
+    -------
+    choices : np.ndarray
+        Binary array of simulated choices.
+    rewards : np.ndarray
+        Binary array of rewards.
+    """
+    if not (0 <= epsilon <= 1):
+        raise ValueError("Epsilon parameter must be between 0 and 1.")
+
+    # Initialize arrays
+    choices = np.zeros(n_trials, dtype=int)
+    rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])  # Random rewards
+
+    # First choice is random
+    choices[0] = np.random.choice([0, 1])
+
+    # Generate choices based on WSLS model
+    for t in range(1, n_trials):
+        prev_choice = choices[t - 1]
+        prev_reward = rewards[t - 1]
+
+        # Calculate probability of choosing option 1
+        if prev_choice == 1:
+            if prev_reward == 1:
+                # Win-stay: high probability of staying with 1
+                p_choose_1 = 1 - epsilon / 2
+            else:
+                # Lose-switch: low probability of staying with 1
+                p_choose_1 = epsilon / 2
+        else:
+            if prev_reward == 1:
+                # Win-stay: high probability of staying with 0 (low prob of switching to 1)
+                p_choose_1 = epsilon / 2
+            else:
+                # Lose-switch: high probability of switching to 1
+                p_choose_1 = 1 - epsilon / 2
+
+        # Generate choice based on probability
+        choices[t] = np.random.binomial(1, p_choose_1)
+
+    return choices, rewards
+
+
+def fit_synthetic_data_win_stay_lose_switch(choices, rewards, initial_guess=[0.5]):
+    """
+    Fit the Win-Stay-Lose-Switch model to synthetic data.
+
+    Parameters
+    ----------
+    choices : np.ndarray
+        Binary array of choices.
+    rewards : np.ndarray
+        Binary array of rewards.
+    initial_guess : list, optional
+        Initial guess for the epsilon parameter.
+
+    Returns
+    -------
+    recovered_epsilon : float
+        The recovered epsilon parameter value.
+    """
+    minimize_options = {
+        'method': 'L-BFGS-B',
+        'bounds': [(0.01, 0.99)],  # Slightly narrowed bounds to avoid edge cases
+        'options': {'disp': False}
+    }
+
+    result = minimizing_win_stay_lose_switch(
+        model_function=win_stay_lose_switch,
+        initial_parameters=initial_guess,
+        choices=choices,
+        rewards=rewards,
+        cost_metric='log-likelihood',
+        minimize_options=minimize_options
+    )
+
+    return result.x[0]  # Return the recovered epsilon
+
+
+def parameter_recovery_test_win_stay_lose_switch(n_tests=20, n_trials=100):
+    """
+    Test parameter recovery for the Win-Stay-Lose-Switch model.
+
+    Parameters
+    ----------
+    n_tests : int, optional
+        Number of parameter recovery tests to perform.
+    n_trials : int, optional
+        Number of trials in each simulated dataset.
+
+    Returns
+    -------
+    true_params : np.ndarray
+        True epsilon parameter values.
+    recovered_params : np.ndarray
+        Recovered epsilon parameter values.
+    """
+    true_params = []
+    recovered_params = []
+
+    for _ in range(n_tests):
+        # Generate random true parameter
+        epsilon_true = np.random.uniform(0.05, 0.95)
+        true_params.append(epsilon_true)
+
+        # Generate synthetic data
+        choices, rewards = generate_synthetic_data_win_stay_lose_switch(epsilon_true, n_trials)
+
+        # Initial guess (random near the true value)
+        initial_guess = [max(0.01, min(0.99, epsilon_true + np.random.uniform(-0.2, 0.2)))]
+
+        # Fit the model
+        recovered_epsilon = fit_synthetic_data_win_stay_lose_switch(choices, rewards, initial_guess)
+        recovered_params.append(recovered_epsilon)
+
+    # Convert to numpy arrays
+    true_params = np.array(true_params)
+    recovered_params = np.array(recovered_params)
+
+    # Plot results
+    plt.figure(figsize=(8, 8))
+    plt.scatter(true_params, recovered_params, alpha=0.7, label="Recovered Parameters")
+    plt.plot([0, 1], [0, 1], color="red", linestyle="--", label="Ideal Recovery (y=x)")
+
+    plt.title(f"Win-Stay-Lose-Switch Parameter Recovery\nN trials: {n_trials}, N tests: {n_tests}")
+    plt.xlabel("True Epsilon (ε)")
+    plt.ylabel("Recovered Epsilon (ε)")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.legend()
+    plt.grid(True, linestyle="--", alpha=0.6)
+
+    plt.show()
+
+    return true_params, recovered_params
 
 
 def generate_synthetic_data_random_responding(b, n_trials=100):
@@ -58,8 +208,8 @@ def generate_synthetic_data_rescorla_wagner(alpha, beta, n_trials=100):
     rewards = np.random.choice([0, 1], size=n_trials, p=[0.5, 0.5])
     n_trials = len(rewards)
     n_stimuli = 1
-    stimuli_present = np.ones((n_trials, n_stimuli), dtype=int) # Single stimulus present in each trial
-    V_history,stimuli_present_output = rescorla_wagner(alpha, beta, rewards, stimuli_present)
+    stimuli_present = np.ones((n_trials, n_stimuli), dtype=int)  # Single stimulus present in each trial
+    V_history, stimuli_present_output = rescorla_wagner(alpha, beta, rewards, stimuli_present)
     V_present = np.sum(V_history[1:] * stimuli_present_output, axis=1)
     # Generate binary choices based on the associative strength and a softmax choice
     choices = np.random.binomial(1, 1 / (1 + np.exp(-beta * (V_present)))).flatten()
@@ -246,6 +396,7 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
 
 
 if __name__ == "__main__":
-    parameter_recovery_test_random_response(n_tests=100,n_trials=60)
+    parameter_recovery_test_win_stay_lose_switch(n_tests=100, n_trials=60)
+    parameter_recovery_test_random_response(n_tests=100, n_trials=60)
     parameter_recovery_test_rescorla_wagner(n_tests=100, n_trials=60)
     parameter_recovery_test_reinforcement_learning(n_tests=100, n_trials=60)
