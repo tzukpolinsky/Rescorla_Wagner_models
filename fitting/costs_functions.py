@@ -1,7 +1,5 @@
 import numpy as np
 from statsmodels.tools.eval_measures import mse, rmse, meanabs, medianabs, maxabs
-
-from Rescorla_models import random_response
 from math_functions.conversion_functions import sigmoid
 from math_functions.costs_metrics import log_likelihood
 
@@ -23,6 +21,45 @@ def metric_calculation(p_choice, observed_data, cost_metric='log-likelihood'):
         return maxabs(observed_data, p_choice)
     else:
         raise ValueError(f"Unsupported cost metric: {cost_metric}")
+
+
+def minimizer_cost_function_win_stay_lose_switch(parameters, model_function, choices, rewards,
+                                                 observed_data=None,
+                                                 cost_metric='log-likelihood'):
+    """
+    Cost function for comparing Win-Stay-Lose-Switch model predictions to observed data.
+
+    Parameters
+    ----------
+    parameters : list or array
+        Model parameters, for WSLS this is just epsilon (randomness parameter).
+    model_function : function
+        The model function (should be win_stay_lose_switch).
+    choices : np.ndarray
+        Binary array of previous choices (0 or 1).
+    rewards : np.ndarray
+        Binary array of rewards (0 or 1).
+    observed_data : np.ndarray, optional
+        Binary array of observed choices. If None, defaults to choices.
+    cost_metric : str, optional
+        The cost metric to use. Default is 'log-likelihood'.
+
+    Returns
+    -------
+    cost : float
+        The calculated cost based on the specified metric.
+    """
+    if observed_data is None:
+        observed_data = np.array(choices)
+
+    # Extract epsilon from parameters
+    epsilon = parameters[0]
+
+    # Get predicted probabilities from the model
+    p_choice = model_function(epsilon, choices, rewards)
+
+    # Calculate cost
+    return metric_calculation(p_choice, observed_data, cost_metric)
 
 
 def minimizer_cost_function_random_response(parameters, model_function, rewards,
@@ -49,9 +86,10 @@ def minimizer_cost_function_rescorla_wagner(parameters, model_function, rewards,
     if observed_data is None:
         observed_data = np.array(rewards)
     if extra_function_params is not None:
-        V_history,stimuli_present_output = model_function(*parameters, rewards, stimuli_present, *extra_function_params)
+        V_history, stimuli_present_output = model_function(*parameters, rewards, stimuli_present,
+                                                           *extra_function_params)
     else:
-        V_history,stimuli_present_output = model_function(*parameters, rewards, stimuli_present)
+        V_history, stimuli_present_output = model_function(*parameters, rewards, stimuli_present)
     V_present = np.sum(V_history[1:] * stimuli_present_output, axis=1)
     p_choice = sigmoid(V_present)
     return metric_calculation(p_choice, observed_data, cost_metric=cost_metric)

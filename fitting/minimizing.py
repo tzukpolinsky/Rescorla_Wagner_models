@@ -2,12 +2,13 @@ import numpy as np
 from scipy.optimize import minimize
 
 from fitting.costs_functions import minimizer_cost_function_rescorla_wagner, \
-    minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response
+    minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response,minimizer_cost_function_win_stay_lose_switch
+
 
 
 def minimizing_random_response(model_function, initial_parameters, rewards,
-                                             observed_data=None,
-                                             cost_metric='log-likelihood', minimize_options=None):
+                               observed_data=None,
+                               cost_metric='log-likelihood', minimize_options=None):
     """
     Function to minimize the cost_function using scipy.optimize.minimize.
 
@@ -35,6 +36,49 @@ def minimizing_random_response(model_function, initial_parameters, rewards,
         minimize_options = {}
     result = minimize(minimizer_cost_function_random_response,
                       args=(model_function, rewards, observed_data, cost_metric), x0=np.array(initial_parameters),
+                      **minimize_options)
+
+    return result
+
+
+def minimizing_win_stay_lose_switch(model_function, initial_parameters, choices, rewards,
+                                    observed_data=None,
+                                    cost_metric='log-likelihood', minimize_options=None):
+    """
+    Function to minimize the cost function for the Win-Stay-Lose-Switch model using scipy.optimize.minimize.
+
+    Parameters
+    ----------
+    model_function : function
+        The Win-Stay-Lose-Switch model function.
+    initial_parameters : list or tuple
+        Initial guess for the epsilon parameter.
+    choices : np.ndarray
+        Binary array of choices (0 or 1).
+    rewards : np.ndarray
+        Binary array of rewards (0 or 1).
+    observed_data : np.ndarray, optional
+        Observed data (computed from choices if None).
+    cost_metric : str
+        The cost metric to use ('log-likelihood', 'mse', 'rmse', etc.)
+    minimize_options : dict, optional
+        Dictionary containing optimization settings.
+
+    Returns
+    -------
+    result : OptimizeResult
+        The result of the optimization.
+    """
+    if minimize_options is None:
+        minimize_options = {
+            'method': 'L-BFGS-B',
+            'bounds': [(0.0, 1.0)],  # Epsilon must be between 0 and 1
+            'options': {'disp': False}
+        }
+
+    result = minimize(minimizer_cost_function_win_stay_lose_switch,
+                      args=(model_function, choices, rewards, observed_data, cost_metric),
+                      x0=np.array(initial_parameters),
                       **minimize_options)
 
     return result
