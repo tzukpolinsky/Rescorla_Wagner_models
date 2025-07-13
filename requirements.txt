@@ -3,3 +3,5 @@ scipy
 statsmodels
 numpy
 scikit-learn
+pyddm
+pathos
