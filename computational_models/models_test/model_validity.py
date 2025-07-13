@@ -1,9 +1,12 @@
 import numpy as np
 from matplotlib import pyplot as plt
 
+import pyddm
+from pyddm import gddm, Sample
+import pandas as pd
 from computational_models.random_response import random_response
 from fitting.minimizing import minimizing_rescorla_wagner_model, minimizing_reinforcement_learning_model, \
-    minimizing_random_response, minimizing_win_stay_lose_switch
+    minimizing_random_response, minimizing_win_stay_lose_switch, fit_ddm
 from computational_models.reinforcement_learning_based_choice_model import reinforcement_learning_simple_model
 from computational_models.rescorla_wagner_simple import rescorla_wagner
 from computational_models.win_stay_lose_switch import win_stay_lose_switch
@@ -395,8 +398,206 @@ def parameter_recovery_test_rescorla_wagner(n_tests=20, n_trials=100):
     return true_params, recovered_params
 
 
+def generate_synthetic_data_ddm(driftrate, boundary, starting_point, ndt, n_trials=100):
+    """
+    Generate synthetic data from a Drift Diffusion Model (DDM) with known parameters.
+
+    Parameters
+    ----------
+    driftrate : float
+        The drift rate parameter (speed of evidence accumulation).
+    boundary : float
+        The boundary separation parameter (decision threshold).
+    starting_point : float
+        The starting point parameter (bias toward one response).
+    ndt : float
+        The non-decision time parameter (encoding + motor response time).
+    n_trials : int, optional
+        Number of trials to simulate (default is 100).
+
+    Returns
+    -------
+    rt_data : np.ndarray
+        Array of reaction times.
+    response_data : np.ndarray
+        Binary array of responses (0 or 1).
+    """
+
+    # Create a DDM model with the specified parameters
+    model = gddm(drift=driftrate, noise=1, bound=boundary, starting_position=starting_point, nondecision=ndt,dt=0.005,  # Default is 0.01, try 0.005 or 0.001
+    dx=0.005)
+    # Simulate data from the model
+    solution = model.solve()
+    sample = solution.sample(n_trials)
+    df_sample = sample.to_pandas_dataframe(drop_undecided=True)
+    # Extract reaction times and responses
+    rt_data = df_sample['RT'].values
+    response_data = df_sample['choice'].values
+
+    return rt_data, response_data
+
+
+def fit_synthetic_data_ddm(rt_data, response_data, parameter_ranges=None):
+    """
+    Fit a DDM model to synthetic data to recover parameters.
+
+    Parameters
+    ----------
+    rt_data : np.ndarray
+        Array of reaction times.
+    response_data : np.ndarray
+        Binary array of responses (0 or 1).
+    parameter_ranges : dict, optional
+        Dictionary of parameter ranges for the model. If None, default ranges are used.
+
+    Returns
+    -------
+    recovered_params : dict
+        Dictionary of recovered parameters.
+    """
+    # Fit the model using the fit_ddm function
+    fitted_model = fit_ddm(rt_data, response_data, parameter_ranges)
+
+    # Extract the recovered parameters
+    recovered_params = fitted_model.parameters()
+
+    return recovered_params
+
+
+def plot_ddm_parameter_recovery(true_params, recovered_params, title):
+    """
+    Visualize the parameter recovery results for the DDM model.
+
+    Parameters
+    ----------
+    true_params : list of tuples
+        List of true parameter values.
+    recovered_params : list of tuples
+        List of recovered parameter values.
+    title : str
+        Title for the plot.
+    """
+    fig, ax = plt.subplots(2, 2, figsize=(12, 12))
+
+    # Extract parameters
+    true_driftrate = [p[0] for p in true_params]
+    true_boundary = [p[1] for p in true_params]
+    true_starting_point = [p[2] for p in true_params]
+    true_ndt = [p[3] for p in true_params]
+
+    recovered_driftrate = [float(p['drift']['drift']) for p in recovered_params]
+    recovered_boundary = [float(p['bound']['B']) for p in recovered_params]
+    recovered_starting_point = [float(p['IC']['x0']) for p in recovered_params]
+    recovered_ndt = [float(p['overlay']['nondectime']) for p in recovered_params]
+
+    # Plot driftrate recovery
+    ax[0, 0].scatter(true_driftrate, recovered_driftrate, label="Drift Rate", color='blue', alpha=0.7)
+    ax[0, 0].plot([-10, 10], [-10, 10], color='gray', linestyle='--', label="Ideal Recovery Line")
+    ax[0, 0].set_title("A: Drift Rate Recovery")
+    ax[0, 0].set_xlabel("Simulated Drift Rate (true)")
+    ax[0, 0].set_ylabel("Recovered Drift Rate (fit)")
+    ax[0, 0].legend()
+
+    # Plot boundary recovery
+    ax[0, 1].scatter(true_boundary, recovered_boundary, label="Boundary", color='orange', alpha=0.7)
+    ax[0, 1].plot([0, 5], [0, 5], color='gray', linestyle='--', label="Ideal Recovery Line")
+    ax[0, 1].set_title("B: Boundary Recovery")
+    ax[0, 1].set_xlabel("Simulated Boundary (true)")
+    ax[0, 1].set_ylabel("Recovered Boundary (fit)")
+    ax[0, 1].legend()
+
+    # Plot starting point recovery
+    ax[1, 0].scatter(true_starting_point, recovered_starting_point, label="Starting Point", color='green', alpha=0.7)
+    ax[1, 0].plot([-0.5, 0.5], [-0.5, 0.5], color='gray', linestyle='--', label="Ideal Recovery Line")
+    ax[1, 0].set_title("C: Starting Point Recovery")
+    ax[1, 0].set_xlabel("Simulated Starting Point (true)")
+    ax[1, 0].set_ylabel("Recovered Starting Point (fit)")
+    ax[1, 0].legend()
+
+    # Plot non-decision time recovery
+    ax[1, 1].scatter(true_ndt, recovered_ndt, label="Non-Decision Time", color='purple', alpha=0.7)
+    ax[1, 1].plot([0, 0.5], [0, 0.5], color='gray', linestyle='--', label="Ideal Recovery Line")
+    ax[1, 1].set_title("D: Non-Decision Time Recovery")
+    ax[1, 1].set_xlabel("Simulated Non-Decision Time (true)")
+    ax[1, 1].set_ylabel("Recovered Non-Decision Time (fit)")
+    ax[1, 1].legend()
+
+    for i in range(2):
+        for j in range(2):
+            for spine in ['top', 'right']:
+                ax[i, j].spines[spine].set_visible(False)
+
+    plt.suptitle(title, fontsize=16, fontweight='bold')
+    plt.tight_layout()
+    plt.show()
+
+
+def parameter_recovery_test_ddm(n_tests=20, n_trials=100):
+    """
+    Test parameter recovery for the Drift Diffusion Model (DDM).
+
+    Parameters
+    ----------
+    n_tests : int, optional
+        Number of parameter recovery tests to perform.
+    n_trials : int, optional
+        Number of trials in each simulated dataset.
+
+    Returns
+    -------
+    true_params : list of tuples
+        True parameter values.
+    recovered_params : list of tuples
+        Recovered parameter values.
+    """
+    true_params = []
+    recovered_params = []
+
+    for _ in range(n_tests):
+        # Generate random true parameters
+        bias = 0.1
+        driftrate_true = np.random.uniform(-3, 3)  # Drift rate
+        boundary_true = np.random.uniform(0.5, 2)  # Boundary
+        starting_point_true = np.random.uniform(-0.5, 0.5)  # Starting point
+        ndt_true = np.random.uniform(0.1, 0.3)  # Non-decision time
+
+        true_params.append((driftrate_true, boundary_true, starting_point_true, ndt_true))
+
+        # Generate synthetic data
+        rt_data, response_data = generate_synthetic_data_ddm(
+            driftrate=driftrate_true,
+            boundary=boundary_true,
+            starting_point=starting_point_true,
+            ndt=ndt_true,
+            n_trials=n_trials
+        )
+
+        # Define parameter ranges for fitting
+        parameter_ranges = {
+            "driftrate": (-3, 3),
+            "B": (0.5, 2),
+            "x0": (-0.5, 0.5),
+            "ndt": (0.1, 0.3)
+        }
+
+        # Fit the synthetic data to recover parameters
+        recovered_params_dict = fit_synthetic_data_ddm(rt_data, response_data, parameter_ranges)
+        recovered_params.append(recovered_params_dict)
+
+    # Plot the parameter recovery results
+    plot_ddm_parameter_recovery(true_params, recovered_params,
+                               f"Drift Diffusion Model Parameter Recovery\nN trials: {n_trials}, N tests: {n_tests}")
+
+    return true_params, recovered_params
+
+
 if __name__ == "__main__":
-    parameter_recovery_test_win_stay_lose_switch(n_tests=100, n_trials=60)
-    parameter_recovery_test_random_response(n_tests=100, n_trials=60)
-    parameter_recovery_test_rescorla_wagner(n_tests=100, n_trials=60)
-    parameter_recovery_test_reinforcement_learning(n_tests=100, n_trials=60)
+    # Test only the DDM parameter recovery with a small number of tests and trials
+    parameter_recovery_test_ddm(n_tests=100, n_trials=60)
+
+    # Uncomment to run all parameter recovery tests
+    # parameter_recovery_test_win_stay_lose_switch(n_tests=100, n_trials=60)
+    # parameter_recovery_test_random_response(n_tests=100, n_trials=60)
+    # parameter_recovery_test_rescorla_wagner(n_tests=100, n_trials=60)
+    # parameter_recovery_test_reinforcement_learning(n_tests=100, n_trials=60)
+    # parameter_recovery_test_ddm(n_tests=100, n_trials=60)

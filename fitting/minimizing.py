@@ -1,9 +1,12 @@
 import numpy as np
+import pandas as pd
+import pyddm
+from pyddm import gddm, Sample
 from scipy.optimize import minimize
 
 from fitting.costs_functions import minimizer_cost_function_rescorla_wagner, \
-    minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response,minimizer_cost_function_win_stay_lose_switch
-
+    minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response, \
+    minimizer_cost_function_win_stay_lose_switch
 
 
 def minimizing_random_response(model_function, initial_parameters, rewards,
@@ -162,8 +165,55 @@ def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards
     return result
 
 
+def fit_ddm(rt_data, response_data, pyddm_options=None):
+    """
+    Fit a Drift Diffusion Model (DDM) to reaction time and choice data using PyDDM.
+
+    Parameters
+    ----------
+    rt_data : np.ndarray
+        Array of reaction times, the data should be in seconds, meaning 500 milliseconds is 0.5.
+    response_data : np.ndarray
+        Binary array of responses (0 or 1).
+    pyddm_options : dict, optional
+        Dictionary of parameter ranges for the model. If None, default ranges are used.
+
+    Returns
+    -------
+    model : pyddm.Model
+        The fitted PyDDM model.
+    """
+    # Create a pandas DataFrame with the data
+    df = pd.DataFrame({
+        'rt': rt_data,
+        'correct': response_data
+    })
+
+    # Create a PyDDM sample from the DataFrame
+    sample = Sample.from_pandas_dataframe(df, rt_column_name="rt", choice_column_name="correct")
+    if pyddm_options is None:
+        pyddm_options = {
+            "driftrate": (-10, 10),
+            "B": (0.1, 5),
+            "x0": (-.5, .5),
+            "ndt": (0, .5)
+        }
+    model = gddm(drift="driftrate", noise=1, bound="B", starting_position="x0", nondecision="ndt",
+                 parameters=pyddm_options,dt=0.005,  # Default is 0.01, try 0.005 or 0.001
+    dx=0.005)
+    # pyddm.set_N_cpus(8)
+    model.fit(sample,verbose=False)
+    # Set default parameter ranges if not provided
+    return model
+    # parameters = []
+    # for param in model.get_model_parameters():
+    #     parameters.append(float(param))
+    # return parameters
+
+
 if __name__ == "__main__":
-    from Rescorla_models.rescorla_wagner_simple import rescorla_wagner
+    # Example 1: Rescorla-Wagner model
+    from computational_models.rescorla_wagner_simple import rescorla_wagner
 
     initial_parameters = [0.3, 0.1]
     rewards = np.array([1, 1, 0, 1, 0, 1, 1, 0, 0, 1])
@@ -184,5 +234,31 @@ if __name__ == "__main__":
         minimize_options=minimize_options
     )
 
+    print("Example 1: Rescorla-Wagner Model")
     print(f"Optimized parameters: {result.x}")
     print(f"Final cost: {result.fun}")
+
+    # Example 2: Drift Diffusion Model (DDM) using PyDDM
+
+    # Example reaction times and responses for 10 trials
+    rt_data = np.array([0.8, 1.2, 0.7, 1.5, 0.9, 1.1, 0.6, 1.3, 1.0, 0.5])
+    response_data = np.array([1, 0, 1, 0, 1, 1, 0, 1, 0, 1])
+
+    # Define parameter ranges for fitting
+    parameter_ranges = {
+        "driftrate": (-10, 10),
+        "B": (0.1, 5),
+        "x0": (-.5, .5),
+        "ndt": (0, .5)
+    }
+
+    # Fit the model using PyDDM
+    print("\nExample 2: Drift Diffusion Model (DDM) using PyDDM")
+    print("Fitting model...")
+
+    fitted_model = fit_ddm(rt_data, response_data, parameter_ranges)
+
+    # Print the fitted parameters
+    print("Fitted parameters:")
+    for param_name, param_value in fitted_model.parameters().items():
+        print(f"{param_name}: {param_value}")
