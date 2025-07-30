@@ -7,7 +7,8 @@ from scipy.optimize import minimize
 from fitting.costs_functions import minimizer_cost_function_rescorla_wagner, \
     minimizer_cost_function_reinforcement_learning, minimizer_cost_function_random_response, \
     minimizer_cost_function_win_stay_lose_switch
-
+import logging
+import pyddm.parameters as param
 
 def minimizing_random_response(model_function, initial_parameters, rewards,
                                observed_data=None,
@@ -165,7 +166,7 @@ def minimizing_rescorla_wagner_model(model_function, initial_parameters, rewards
     return result
 
 
-def fit_ddm(rt_data, response_data, pyddm_options=None):
+def fit_ddm(rt_data, response_data, pyddm_options=None,longest_rt_duration=3,pyddm_cpu_n=1):
     """
     Fit a Drift Diffusion Model (DDM) to reaction time and choice data using PyDDM.
 
@@ -184,6 +185,9 @@ def fit_ddm(rt_data, response_data, pyddm_options=None):
         The fitted PyDDM model.
     """
     # Create a pandas DataFrame with the data
+    logging.getLogger('pyddm').setLevel(logging.ERROR)
+    param.verbose = False
+    param.renorm_warnings = False
     df = pd.DataFrame({
         'rt': rt_data,
         'correct': response_data
@@ -193,15 +197,15 @@ def fit_ddm(rt_data, response_data, pyddm_options=None):
     sample = Sample.from_pandas_dataframe(df, rt_column_name="rt", choice_column_name="correct")
     if pyddm_options is None:
         pyddm_options = {
-            "driftrate": (-10, 10),
+            "driftrate": (-5, 5),
             "B": (0.1, 5),
             "x0": (-.5, .5),
-            "ndt": (0, .5)
+            "ndt": (0.1, .3)
         }
     model = gddm(drift="driftrate", noise=1, bound="B", starting_position="x0", nondecision="ndt",
                  parameters=pyddm_options,dt=0.005,  # Default is 0.01, try 0.005 or 0.001
-    dx=0.005)
-    # pyddm.set_N_cpus(8)
+    dx=0.005,T_dur=longest_rt_duration)
+    pyddm.set_N_cpus(pyddm_cpu_n)
     model.fit(sample,verbose=False)
     # Set default parameter ranges if not provided
     return model
